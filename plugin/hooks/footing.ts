@@ -117,15 +117,21 @@ export class RowBook {
   topRow: string | null = null
   home: string | null = null
   recent: string[] = []
+  // The conversation's rows in order, oldest first, as they were added (and
+  // each turn's "done" row when it first drew). Kept across reloads.
+  order: string[] = []
 
   // A row drew. A "done" row drawing for the first time is the newest row
   // there is (it may draw before the turn is reported complete): home. After
   // a reload every row draws again, top to bottom, so the last one wins.
-  drawn(rowId: string, component: string, cut: Cut): void {
+  // `isSettled`: past the burst of drawing that follows a (re)load, when every
+  // old row draws for the first time. Only a done row drawn after it is new.
+  drawn(rowId: string, component: string, cut: Cut, isSettled = true): void {
     if (component === 'TurnDuration' && !this.visible.has(rowId)) {
       this.doneRows.push(rowId)
       if (this.doneRows.length > 50) this.doneRows.shift()
       this.home = rowId
+      if (isSettled) this.ordered(rowId)
     }
     this.visible.set(rowId, cut !== null)
     if (cut !== undefined) this.measured.add(rowId)
@@ -139,6 +145,13 @@ export class RowBook {
   appended(rowId: string): void {
     this.home = rowId
     this.recent = [...this.recent, rowId].slice(-60)
+    this.ordered(rowId)
+  }
+
+  private ordered(rowId: string): void {
+    if (this.order.includes(rowId)) return
+    this.order.push(rowId)
+    if (this.order.length > 500) this.order.shift()
   }
 
   turnEnded(): void {
@@ -157,7 +170,12 @@ export class RowBook {
   // The topmost row on screen: rows enter `visible` in the order they first
   // draw, which is top to bottom, and leave it (false) when scrolled away.
   topVisible(): string | null {
-    for (const [id, isShown] of this.visible) if (isShown && this.measured.has(id) && !this.spinners.has(id)) return id
+    const isCandidate = (id: string) => this.visible.get(id) === true && this.measured.has(id) && !this.spinners.has(id)
+    // The conversation's own order is the truth; rows from before it was
+    // kept fall back to the order they drew in.
+    const known = this.order.find(isCandidate)
+    if (known) return known
+    for (const id of this.visible.keys()) if (isCandidate(id)) return id
     return null
   }
 }

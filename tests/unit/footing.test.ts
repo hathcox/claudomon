@@ -132,3 +132,23 @@ test('the topmost visible row is the first to have drawn that is still on screen
   book.drawn('a', 'AssistantMessage', null)
   assert.equal(book.topVisible(), 'b')
 })
+
+test('the topmost row follows the conversation order, not the order rows drew in', () => {
+  // Regression: after a reload the "done" row at the bottom drew first and the
+  // top dock stood on it.
+  const book = new RowBook()
+  book.order = ['q', 'a', 'done']
+  book.drawn('done', 'TurnDuration', { first: 0, last: 1, of: 2 })
+  book.drawn('a', 'AssistantMessage', { first: 0, last: 9, of: 10 })
+  book.drawn('q', 'UserMessage', null)
+  assert.equal(book.topVisible(), 'a')
+})
+
+test('old done rows drawing after a reload do not join the order at its end', () => {
+  const book = new RowBook()
+  book.order = ['q1', 'a1', 'q2', 'a2']
+  book.drawn('done-1', 'TurnDuration', { first: 0, last: 1, of: 2 }, false)
+  assert.deepEqual(book.order, ['q1', 'a1', 'q2', 'a2'])
+  book.drawn('done-2', 'TurnDuration', { first: 0, last: 1, of: 2 }, true)
+  assert.deepEqual(book.order.at(-1), 'done-2')
+})
