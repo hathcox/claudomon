@@ -104,6 +104,13 @@ const book = new RowBook()
 async function tick($: EngineInterface) {
   if (!genome) return
   stroll = tickStroll(stroll, genome, currentAction, columns)
+  // Rows only say where they are when they draw. After a (re)load nothing has
+  // drawn yet, and an idle screen redraws nothing: so ask every row to draw
+  // again, once at the start and then now and then while no row has said the
+  // top edge cuts it.
+  if (stroll.tick === 2 || (book.topRow === null && stroll.dock === 'top' && stroll.tick % 16 === 0)) {
+    $.ui.invalidate('ui.render')
+  }
   if ((book.topRow === null) !== toplessNow) {
     toplessNow = book.topRow === null
     await update($, topless, () => toplessNow)
