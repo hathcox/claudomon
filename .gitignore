@@ -1,0 +1,7 @@
+out/
+node_modules/
+.venv/
+plugin/.claude-plugin/types/
+.DS_Store
+__pycache__/
+*.pyc

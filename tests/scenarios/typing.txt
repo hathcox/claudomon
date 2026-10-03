@@ -1,0 +1,28 @@
+# Typing in the prompt: the keyboard appears at its feet. Free: no model call.
+wait-for (trust this folder|❯\s) 30
+wait 1
+if trust this folder :: key down ;; key enter
+wait-for ❯\s 30
+wait 1
+type /claudomon
+wait 0.3
+key enter
+wait 2
+expect-no-color #3b3e4b rows 0-17 no keyboard before typing
+type h
+wait 0.1
+type e
+wait 0.1
+type l
+wait 0.1
+type l
+wait 0.1
+type o
+wait 0.2
+expect-color #3b3e4b rows 0-17 keyboard while typing
+wait 2.5
+expect-no-color #3b3e4b rows 0-17 keyboard gone after a pause
+key ctrl-c
+key ctrl-c
+key ctrl-c
+wait 1

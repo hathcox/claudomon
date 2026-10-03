@@ -1,0 +1,39 @@
+# Dragged to the bottom dock: visible at the bottom through a scroll, and
+# still there after another turn (regression: it went off screen). Two short
+# Haiku replies.
+wait-for (trust this folder|❯\s) 30
+wait 1
+if trust this folder :: key down ;; key enter
+wait-for ❯\s 30
+wait 1
+type Reply with only the numbers 1 to 40, one per line.
+wait 0.3
+key enter
+wait-for done \d 90
+wait 2
+find-color @OUTLINE@
+mouse-move $cx $cy
+wait 0.3
+find-color @OUTLINE@
+mouse-down $cx $cy
+mouse-drag $cx-6 $cy+15
+mouse-up $cx-6 $cy+15
+wait 1.5
+expect-color @OUTLINE@ rows 9-17 dropped into the bottom dock
+expect-no-color @OUTLINE@ rows 0-5 not also at the top
+wheel up 8 30 10
+wait 1.2
+expect-color @OUTLINE@ rows 9-17 at the bottom edge while scrolled up
+wheel down 16 30 10
+wait 1.5
+expect-color @OUTLINE@ rows 9-17 back home after scrolling down
+type Reply with just the word ok.
+wait 0.3
+key enter
+wait 10
+wait 2.5
+expect-color @OUTLINE@ rows 9-17 at the bottom after another turn
+key ctrl-c
+key ctrl-c
+key ctrl-c
+wait 1

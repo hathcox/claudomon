@@ -1,0 +1,18 @@
+# A short conversation (one slash command): the top dock has nothing to
+# stand on, so the pet stands at the bottom. Free: no model call.
+wait-for (trust this folder|❯\s) 30
+wait 1
+if trust this folder :: key down ;; key enter
+wait-for ❯\s 30
+wait 1
+type /claudomon
+wait 0.3
+key enter
+wait 2.5
+expect-color @OUTLINE@ rows 0-17 pet visible after a slash command
+measure 2
+expect-blanked <=4
+key ctrl-c
+key ctrl-c
+key ctrl-c
+wait 1

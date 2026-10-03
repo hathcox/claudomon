@@ -1,0 +1,25 @@
+# The default compact pet at 80x24: idle, gaze, click.
+wait-for (trust this folder|❯\s) 30
+wait 1
+if trust this folder :: key down ;; key enter
+wait-for ❯\s 30
+wait 4
+shot 01-idle
+mouse-move 2 18
+wait 0.6
+shot 02-look-left
+mouse-move 60 18
+wait 0.6
+shot 03-look-right
+mouse-click 12 19
+wait 0.3
+shot 04-click
+key esc
+type /claudomon mini
+wait 0.5
+key enter
+wait 2
+shot 05-mini
+key ctrl-c
+key ctrl-c
+wait 1

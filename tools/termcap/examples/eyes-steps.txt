@@ -1,0 +1,28 @@
+wait-for (trust this folder|❯\s) 30
+wait 1
+if trust this folder :: key down ;; key enter
+wait-for ❯\s 30
+if Compact pet|hanging out :: type /claudomon big ;; key enter ;; wait 3
+wait 2
+shot s0
+mouse-move 3 30
+wait 0.5
+shot s1-left
+mouse-move 25 30
+wait 0.5
+shot s2-right-near
+mouse-move 33 30
+wait 0.5
+shot s3-right-edge
+mouse-move 40 30
+wait 0.5
+shot s4-right-text
+mouse-move 13 25
+wait 0.5
+shot s5-up
+mouse-move 13 33
+wait 0.5
+shot s6-down
+mouse-move 3 30
+wait 0.5
+shot s7-left-again

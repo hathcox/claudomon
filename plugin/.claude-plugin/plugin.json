@@ -1,0 +1,9 @@
+{
+  "name": "claudomon",
+  "version": "0.1.0",
+  "description": "A pixel pet that lives on your Claude Code screen, hatched from your project and reacting to everything Claude does",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "Iggy Krajci"
+  }
+}

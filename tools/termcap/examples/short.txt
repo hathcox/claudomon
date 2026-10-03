@@ -1,0 +1,3 @@
+wait-for (trust this folder|❯ ) 30
+wait 1
+shot 00-first

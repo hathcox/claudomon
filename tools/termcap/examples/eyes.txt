@@ -1,0 +1,31 @@
+# Eye tracking in the full-size pet. Run at --rows 40 so the band is tall enough:
+#   termcap.py --rows 40 --cwd <project> examples/eyes.txt -- claude --plugin-dir <mod>
+wait-for (trust this folder|❯\s) 30
+wait 1
+if trust this folder :: key down ;; key enter
+wait-for ❯\s 30
+type /claudomon big
+key enter
+wait 3
+if Full-size pet off|Compact pet :: type /claudomon big ;; key enter ;; wait 3
+shot e0-big
+mouse-move 1 31
+wait 0.5
+shot e1-look-left
+mouse-move 75 31
+wait 0.5
+shot e2-look-right
+mouse-move 13 24
+wait 0.5
+shot e3-look-up
+mouse-move 13 34
+wait 0.5
+shot e4-look-down
+mouse-click 13 30
+wait 0.3
+shot e5-click
+wait 0.6
+shot e6-click-later
+key esc
+key ctrl-c
+key ctrl-c

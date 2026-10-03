@@ -1,0 +1,4 @@
+wait 6
+shot probe-start
+wait 4
+shot probe-later

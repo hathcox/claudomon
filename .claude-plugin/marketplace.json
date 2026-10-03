@@ -1,0 +1,14 @@
+{
+  "name": "claudomon",
+  "description": "Claudomon: a Claude Code mod that hatches a pixel pet for every project",
+  "owner": {
+    "name": "Iggy Krajci"
+  },
+  "plugins": [
+    {
+      "name": "claudomon",
+      "source": "./plugin",
+      "description": "A pixel pet that lives on your Claude Code screen, hatched from your project and reacting to everything Claude does"
+    }
+  ]
+}

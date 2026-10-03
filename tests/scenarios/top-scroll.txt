@@ -1,0 +1,27 @@
+# A long reply: docked at the top by default, it stays at the top through a
+# scroll up and back down. One short Haiku reply.
+wait-for (trust this folder|❯\s) 30
+wait 1
+if trust this folder :: key down ;; key enter
+wait-for ❯\s 30
+wait 1
+type Reply with only the numbers 1 to 40, one per line.
+wait 0.3
+key enter
+wait-for done \d 90
+wait 2.5
+expect-color @OUTLINE@ rows 0-7 top dock after a long reply
+# Measure the steady state: moving into the dock repaints once.
+wait 2
+measure 2
+expect-blanked <=4
+wheel up 6 30 10
+wait 1.2
+expect-color @OUTLINE@ rows 0-7 still at the top scrolled up
+wheel down 14 30 10
+wait 1.5
+expect-color @OUTLINE@ rows 0-7 still at the top scrolled back
+key ctrl-c
+key ctrl-c
+key ctrl-c
+wait 1
