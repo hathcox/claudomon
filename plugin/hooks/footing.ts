@@ -35,6 +35,9 @@ export type PlaceInput = {
   // The row the pet calls home at the bottom while it is on screen; null
   // while it is scrolled away.
   footing: string | null
+  // With no row cut by the top edge, the topmost row on screen that has
+  // drawn: the top dock stands on its first line instead.
+  topCandidate?: string | null
   rowId: string
   component: string
   cut: Cut
@@ -45,10 +48,13 @@ export function place(i: PlaceInput): Place | null {
   const topCut = isTopCut(i.cut, i.component)
   if (i.docked === 'top') {
     if (topCut) return { where: 'top', layout: 'top-cut' }
-    // Nothing to stand on at the top. While a reply streams in it waits there
-    // (out of sight) rather than dropping to the working line; idle, in a
-    // short conversation, it stands at the bottom instead.
-    if (!i.topless || i.working) return null
+    if (!i.topless) return null
+    // No row is cut by the top edge (the top of the screen is something rows
+    // cannot be hooked into, or the conversation is short): stand on the
+    // topmost row on screen. Failing that, wait while a reply streams in, and
+    // stand at the bottom when idle.
+    if (i.topCandidate != null) return i.rowId === i.topCandidate && i.cut != null ? { where: 'top', layout: 'top-cut' } : null
+    if (i.working) return null
   }
   if (i.working) return i.component === 'Spinner' ? { where: 'bottom', layout: 'above' } : null
   if (i.footing !== null) return i.rowId === i.footing ? { where: 'bottom', layout: 'above' } : null
@@ -105,6 +111,8 @@ export class RowBook {
   readonly visible = new Map<string, boolean>()
   readonly spinners = new Set<string>()
   readonly doneRows: string[] = []
+  // Rows that say how much of them is on screen (some kinds never do).
+  readonly measured = new Set<string>()
   // The row the window's top edge cuts through, as that row last said.
   topRow: string | null = null
   home: string | null = null
@@ -120,6 +128,7 @@ export class RowBook {
       this.home = rowId
     }
     this.visible.set(rowId, cut !== null)
+    if (cut !== undefined) this.measured.add(rowId)
     if (component === 'Spinner') this.spinners.add(rowId)
     if (this.visible.size > 600) this.visible.delete(this.visible.keys().next().value!)
     if (isTopCut(cut, component)) this.topRow = rowId
@@ -143,5 +152,12 @@ export class RowBook {
 
   footing(): string | null {
     return footingOf(this.home, this.visible)
+  }
+
+  // The topmost row on screen: rows enter `visible` in the order they first
+  // draw, which is top to bottom, and leave it (false) when scrolled away.
+  topVisible(): string | null {
+    for (const [id, isShown] of this.visible) if (isShown && this.measured.has(id) && !this.spinners.has(id)) return id
+    return null
   }
 }

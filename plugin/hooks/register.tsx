@@ -523,6 +523,7 @@ export const register: Register = on => {
       topless: await read($, topless),
       working: await read($, isWorking),
       footing: await read($, anchor),
+      topCandidate: book.topRow === null ? book.topVisible() : null,
       rowId,
       component: e.component,
       cut,

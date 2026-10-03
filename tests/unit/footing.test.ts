@@ -106,3 +106,29 @@ test('the top row is whichever row last said the top edge cuts it', () => {
   book.drawn('s', 'Spinner', { first: 4, last: 9, of: 10 })
   assert.equal(book.topRow, null)
 })
+
+test('top dock with no row cut: the topmost row on screen holds it, on its first line', () => {
+  // Regression: an unhookable thing at the top of the screen sent it to the bottom.
+  const screen = [
+    { id: 'first', cut: { first: 0, last: 5, of: 6 } },
+    { id: 'second', cut: { first: 0, last: 3, of: 4 } },
+    { id: 'home', cut: { first: 0, last: 1, of: 2 } },
+  ]
+  assert.deepEqual(drawer(screen, { docked: 'top', topless: true, topCandidate: 'first', footing: 'home' }), ['first'])
+  assert.deepEqual(drawer(screen, { docked: 'top', topless: true, topCandidate: 'first', working: true }), ['first'])
+  const m = margins('top-cut', screen[0]!.cut, 7)
+  assert.equal(screen[0]!.cut.of + m.marginTop, 0, 'overlay starts on the first line')
+})
+
+test('the topmost visible row is the first to have drawn that is still on screen', () => {
+  const book = new RowBook()
+  // A row that never says where it is cannot be stood on.
+  book.drawn('unmeasured', 'CommandOutput', undefined)
+  book.drawn('a', 'AssistantMessage', { first: 0, last: 3, of: 4 })
+  book.drawn('b', 'AssistantMessage', { first: 0, last: 3, of: 4 })
+  book.drawn('s', 'Spinner', undefined)
+  book.drawn('quiet', 'InfoNotice', undefined)
+  assert.equal(book.topVisible(), 'a')
+  book.drawn('a', 'AssistantMessage', null)
+  assert.equal(book.topVisible(), 'b')
+})
