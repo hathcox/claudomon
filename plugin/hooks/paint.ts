@@ -27,6 +27,7 @@ const KEYS = '#3b3e4b'
 const KEYCAP = '#8d92a6'
 const KEYLIT = '#ffffff'
 const DESK = '#272a33'
+const TREAT = '#e8a85c'
 
 const QUESTION = ['##.', '..#', '.#.', '...', '.#.']
 const HEART_SHAPE = ['##.##', '#####', '.###.', '..#..']
@@ -112,12 +113,16 @@ export function paint(g: Genome, pose: Pose): Pixels {
   for (const ex of [e.left, e.right]) {
     const x = ex + dx
     const y = e.y + dy
-    if (pose.emote === 'happy' || pose.emote === 'purr') {
+    if (pose.emote === 'happy' || pose.emote === 'purr' || pose.emote === 'belly') {
       // Closed, smiling arcs: a top stroke and the outer corner dipping.
       rect(x, y, s, 1, INK)
       put(ex === e.left ? x - 1 : x + s, y + 1, INK)
     } else if (shut) {
       rect(x, y + s - 1, s, 1, INK)
+    } else if (pose.emote === 'sad') {
+      // Heavy lids over downcast eyes.
+      rect(x, y, s, s, INK)
+      rect(x, y, s, 1, p.outline)
     } else {
       // Up, left and right only: looking down would sink onto the mouth.
       const ly = Math.min(0, look.y)
@@ -133,7 +138,15 @@ export function paint(g: Genome, pose: Pose): Pixels {
     const open = frame % 4 < 2
     rect(mx, my, 2, 1, open ? MOUTH : INK)
     if (open) put(mx, my + 1, MOUTH)
-  } else if (pose.emote === 'happy' || pose.emote === 'heart' || pose.emote === 'purr') {
+  } else if (pose.emote === 'treat' && pose.emoteFrame < 14) {
+    const open = pose.emoteFrame % 4 < 2
+    rect(mx, my, 2, 1, open ? MOUTH : INK)
+    if (open) put(mx, my + 1, MOUTH)
+  } else if (pose.emote === 'sad') {
+    put(mx - 1, my + 1, INK)
+    rect(mx, my, 2, 1, INK)
+    put(mx + 2, my + 1, INK)
+  } else if (pose.emote === 'happy' || pose.emote === 'heart' || pose.emote === 'purr' || pose.emote === 'belly' || pose.emote === 'treat') {
     put(mx - 1, my, INK)
     rect(mx, my + 1, 2, 1, INK)
     put(mx + 2, my, INK)
@@ -146,10 +159,37 @@ export function paint(g: Genome, pose: Pose): Pixels {
   if (awake && !pose.typing) props(action)
   if (pose.sleeping) glyph(ZED, right + 2, Math.max(0, 2 - ((frame >> 3) % 3)), p.accent)
   if (pose.emote === 'heart') glyph(HEART_SHAPE, right + 1, Math.max(0, 4 - (pose.emoteFrame >> 1)), HEART)
+  if (pose.emote === 'treat') {
+    const f = pose.emoteFrame
+    if (f < 14) {
+      const x = g.cx + 1 + dx
+      const y = g.mouthY - 1 + dy
+      const left = 3 - Math.floor(f / 5)
+      rect(x, y, left, 2, TREAT)
+      if (left > 1) put(x + 1, y, CHIP)
+      if (f % 4 < 2) put(x + left, y + 3, TREAT)
+    } else {
+      glyph(HEART_SHAPE, right + 1, Math.max(0, 4 - ((f - 14) >> 1)), HEART)
+    }
+  }
   if (pose.emote === 'purr') {
     // Cheeks flush and a heart drifts up, over and over while it is petted.
     const e2 = g.eyes
     for (const ex of [e2.left - 1, e2.right + e2.size]) put(ex + dx, e2.y + e2.size + dy, p.blush)
+    glyph(HEART_SHAPE, right + 1, 4 - ((pose.emoteFrame >> 1) % 5), HEART)
+  }
+
+  if (pose.emote === 'belly') {
+    // Rolled onto its back: the whole picture upside down, feet kicking in
+    // the air, cheeks flushed, a heart rising.
+    const flipped: Pixels = Array(W * H).fill(null)
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) flipped[(H - 1 - y) * W + x] = px[y * W + x] ?? null
+    const kick = (pose.emoteFrame >> 1) % 2
+    for (const fx of g.feet) {
+      flipped[(kick ? 0 : 1) * W + fx] = null
+      flipped[(kick ? 1 : 0) * W + fx + 1] = p.outline
+    }
+    for (let i = 0; i < W * H; i++) px[i] = flipped[i] ?? null
     glyph(HEART_SHAPE, right + 1, 4 - ((pose.emoteFrame >> 1) % 5), HEART)
   }
 

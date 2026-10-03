@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { W, hashSeed, makeGenome } from '../../plugin/hooks/genome'
-import { drop, grab, hitTest, homeOf, isPetted, isTyping, liftOf, pointAt, poseOf, startStroll, tap, tickStroll } from '../../plugin/hooks/stroll'
+import { drop, giveTreat, grab, hitTest, homeOf, isPetted, isRolledOver, isTyping, liftOf, pointAt, poseOf, startStroll, tap, tickStroll } from '../../plugin/hooks/stroll'
 import type { Stroll } from '../../plugin/hooks/stroll'
 
 const g = makeGenome(hashSeed('git@github.com:example/stroll.git'))
@@ -137,4 +137,43 @@ test('just passing over it, or clicking, is not petting', () => {
   let t = run(startStroll(), 2)
   for (const x of [1, 3, 1, 3, 1, 3, 1]) t = pointAt(tickStroll(t, g, 'idle', COLS), x, 4, null, null, COLS)
   assert.ok(!isPetted(t))
+})
+
+test('petted long enough, it rolls onto its back for a belly rub', () => {
+  let s = run(startStroll(), 2)
+  const c = s.x + g.cx
+  const back = [c - 2, c, c + 2, c]
+  s = rub(s, [...back, ...back, ...back])
+  assert.equal(poseOf(s, g, 'idle').emote, 'purr')
+  assert.ok(!isRolledOver(s))
+  s = rub(s, [...back, ...back, ...back, ...back, ...back, ...back])
+  assert.ok(isRolledOver(s))
+  assert.equal(poseOf(s, g, 'idle').emote, 'belly')
+  s = run(s, 40)
+  assert.ok(!isRolledOver(s))
+})
+
+test('a treat is chomped, or refused when it is full', () => {
+  let s = run(startStroll(), 2)
+  const yum = giveTreat(s, false)
+  assert.equal(poseOf(yum, g, 'idle').emote, 'treat')
+  assert.equal(poseOf(yum, g, 'idle').walking, false)
+  const no = giveTreat(s, true)
+  assert.equal(poseOf(no, g, 'idle').emote, 'wiggle')
+  assert.equal(poseOf(run(yum, 40), g, 'idle').emote === 'treat', false)
+})
+
+test('sad, it mopes in place; overjoyed, it hops now and then', () => {
+  const s = run(startStroll(), 20)
+  const sad = poseOf(s, g, 'idle', 10)
+  assert.equal(sad.emote, 'sad')
+  assert.equal(sad.walking, false)
+  let hops = 0
+  let t = s
+  for (let i = 0; i < 320; i++) {
+    t = tickStroll(t, g, 'idle', COLS)
+    if (poseOf(t, g, 'idle', 95).emote === 'jump') hops++
+  }
+  assert.ok(hops > 0)
+  assert.equal(poseOf(s, g, 'read', 10).emote, null, 'busy, it does not mope')
 })

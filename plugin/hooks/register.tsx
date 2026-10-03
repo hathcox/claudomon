@@ -12,7 +12,7 @@ import type { Cut } from './footing'
 import { MENU_ROWS, MENU_WIDTH, buildMenu, hotspotAt } from './menu'
 import type { MenuInfo } from './menu'
 import { shade } from './shade'
-import { HOVER_TICKS, TICK_MS, drop, grab, hitTest, homeOf, isPetted, isTyping, tap, isPanelOpen, liftOf, pointAt, poseOf, signature, startStroll, tickStroll } from './stroll'
+import { HOVER_TICKS, TICK_MS, drop, giveTreat, grab, hitTest, homeOf, isPetted, isRolledOver, isTyping, tap, isPanelOpen, liftOf, pointAt, poseOf, signature, startStroll, tickStroll } from './stroll'
 import type { Stroll } from './stroll'
 import type { Action, Activity, Dock, PetView, Shown, SpinnerMode } from '../types'
 
@@ -35,6 +35,8 @@ const ANCHORS = ['UserMessage', 'AssistantMessage', 'ToolUse', 'ToolGroup', 'Too
 // would lift it to the reply's first line. A finished turn uses its
 // one-line "done" row (TurnDuration) instead.
 const SHOWN_DOORS = new Set(['prompt', 'command'])
+// Every row the conversation shows, for its order (the top dock's fallback).
+const ORDER_DOORS = new Set(['prompt', 'command', 'response', 'tool-result'])
 
 type Stats = {
   prompts: number
@@ -46,6 +48,7 @@ type Stats = {
   pets: number
   launches: number
   keys: number
+  treats: number
 }
 type Record = {
   name: string | null
@@ -55,9 +58,13 @@ type Record = {
   // Where the person last dropped it.
   place?: { dock: Dock; x: number }
   bestWpm?: number
+  // Happiness and when it was last set: it fades while nobody is around.
+  mood?: { value: number; at: number }
+  // When it last ate treats (ms), to know when it is full.
+  treats?: number[]
 }
 
-const NO_STATS: Stats = { prompts: 0, reads: 0, searches: 0, eaten: 0, pooped: 0, tinkers: 0, pets: 0, launches: 0, keys: 0 }
+const NO_STATS: Stats = { prompts: 0, reads: 0, searches: 0, eaten: 0, pooped: 0, tinkers: 0, pets: 0, launches: 0, keys: 0, treats: 0 }
 
 const OVERLAY_ROWS = Math.ceil(H / 2)
 
@@ -70,6 +77,28 @@ let pendingStats: Partial<Stats> = {}
 let statsNow: Stats = { ...NO_STATS }
 let bornAt = 0
 let bestWpm = 0
+// Happiness, 0..100, as of `moodAt` (ms); it fades a point every five minutes.
+let moodValue = 60
+let moodAt = 0
+let nowMs = 0
+let treatTimes: number[] = []
+const MOOD_FADE_MS = 5 * 60_000
+const FULL_AFTER = 4
+const FULL_FOR_MS = 20 * 60_000
+
+function moodNow(): number {
+  const faded = moodValue - Math.max(0, nowMs - moodAt) / MOOD_FADE_MS
+  return Math.max(0, Math.min(100, faded))
+}
+
+function cheer(delta: number) {
+  moodValue = Math.max(0, Math.min(100, moodNow() + delta))
+  moodAt = nowMs
+}
+
+function isFull(): boolean {
+  return treatTimes.filter(t => nowMs - t < FULL_FOR_MS).length >= FULL_AFTER
+}
 // Keystrokes in the prompt: when (in ticks) and how many characters each typed.
 const keyLog: [number, number][] = []
 const WPM_WINDOW = 80 // ticks: the last ten seconds
@@ -106,6 +135,7 @@ let orderSaved = 0
 async function tick($: EngineInterface) {
   if (!genome) return
   stroll = tickStroll(stroll, genome, currentAction, columns)
+  if (stroll.tick % 8 === 0) nowMs = await $.clock.now()
   // Rows only say where they are when they draw. After a (re)load nothing has
   // drawn yet, and an idle screen redraws nothing: so ask every row to draw
   // again, once at the start and then now and then while no row has said the
@@ -143,6 +173,8 @@ async function diagnose($: EngineInterface, path: string) {
     footingVisible: footing ? (book.visible.get(footing) ?? null) : null,
     rows,
     topRow: book.topRow,
+    topCandidate: book.topVisible(),
+    orderLength: book.order.length,
     home: book.home,
     toplessNow,
     whereNow,
@@ -173,12 +205,13 @@ async function publish($: EngineInterface, action: Action) {
   if (!genome) return
   const isHovered = stroll.isHovered && stroll.pointer !== null && stroll.tick - stroll.pointer.at < HOVER_TICKS
   const next: Shown = {
-    pose: poseOf(stroll, genome, action),
+    pose: poseOf(stroll, genome, action, moodNow()),
     x: stroll.x,
     lift: liftOf(stroll),
     isHovered: isHovered && !stroll.flight,
     isPanelOpen: isPanelOpen(stroll),
     wpm: isTyping(stroll) ? wpmNow() : null,
+    mood: Math.round(moodNow()),
     dock: stroll.dock,
     dragDy: 0,
     menuHover: isPanelOpen(stroll) ? menuHover : null,
@@ -193,7 +226,15 @@ async function flush($: EngineInterface, patch: Partial<Record> = {}) {
   const saved = ((await $.store.get(storeKey)) as Record | undefined) ?? { name: null, xp: 0, born: await $.clock.now() }
   const stats = { ...NO_STATS, ...saved.stats }
   for (const [k, v] of Object.entries(pendingStats)) stats[k as keyof Stats] += v ?? 0
-  const next: Record = { ...saved, ...patch, xp: saved.xp + pendingXp, stats, bestWpm: Math.max(saved.bestWpm ?? 0, bestWpm) }
+  const next: Record = {
+    ...saved,
+    ...patch,
+    xp: saved.xp + pendingXp,
+    stats,
+    bestWpm: Math.max(saved.bestWpm ?? 0, bestWpm),
+    mood: { value: moodNow(), at: nowMs },
+    treats: treatTimes.filter(t => nowMs - t < FULL_FOR_MS),
+  }
   pendingXp = 0
   pendingStats = {}
   statsNow = stats
@@ -246,7 +287,7 @@ function menuLeft(petX: number): number {
 function menuInfo(name: string | null, species: string, xp: number, now: number): MenuInfo {
   const { level, into, span } = levelOf(xp)
   const ageDays = Math.max(0, Math.floor((now - bornAt) / 86_400_000))
-  return { name, species, level, into, span, ageDays, stats: statsNow, bestWpm }
+  return { name, species, level, into, span, ageDays, stats: statsNow, bestWpm, mood: moodNow() }
 }
 
 // The pointer inside the open card: hover lights a hotspot and its tooltip,
@@ -276,6 +317,17 @@ async function onMenu($: EngineInterface, p: { x: number; y: number; click: stri
     count('launches')
     await feed($, 1)
     stroll = pointAt({ ...stroll, panelAt: null }, stroll.x + genome.cx, 4, 'pet', 'launch', columns)
+  }
+  if (spot === 'treat') {
+    // Eaten with delight, unless it has had a few too many lately.
+    const full = isFull()
+    stroll = giveTreat(stroll, full)
+    if (!full) {
+      treatTimes.push(nowMs)
+      count('treats')
+      cheer(15)
+      await feed($, 3)
+    }
   }
   if (spot === 'nap') stroll = { ...stroll, panelAt: null, isHovered: false, pointer: null, quietSince: stroll.tick - 100_000 }
   if (spot === 'hide') {
@@ -337,6 +389,10 @@ export const register: Register = on => {
     await update($, dock, () => stroll.dock)
     bornAt = saved?.born ?? (await $.clock.now())
     bestWpm = saved?.bestWpm ?? 0
+    nowMs = await $.clock.now()
+    moodValue = saved?.mood?.value ?? 60
+    moodAt = saved?.mood?.at ?? nowMs
+    treatTimes = saved?.treats ?? []
     await update($, pet, () => view)
     await $.command.register({
       name: 'claudomon',
@@ -385,6 +441,7 @@ export const register: Register = on => {
     await update($, isNaming, () => false)
     await update($, isWorking, () => true)
     count('prompts')
+    cheer(2)
     currentAction = 'think'
     await update($, activity, (): Activity => ({ action: 'think', detail: null }))
 
@@ -421,6 +478,7 @@ export const register: Register = on => {
   // The newest shown row of the main conversation is the pet's footing.
   on('session.append', async ($, e, next) => {
     const row = await next(e)
+    if (!e.agentId && !e.message.isMeta && ORDER_DOORS.has(e.door) && !SHOWN_DOORS.has(e.door)) book.ordered(e.uuid)
     if (!e.agentId && !e.message.isMeta && SHOWN_DOORS.has(e.door)) {
       footingNow = e.uuid
       book.appended(e.uuid)
@@ -477,12 +535,15 @@ export const register: Register = on => {
         if (ptrLog.length > 40) ptrLog.shift()
         if (p.click === 'left' && !wantsPanel && hit === 'tag') await update($, isNaming, () => true)
         const wasPetted = isPetted(stroll)
+        const wasRolled = isRolledOver(stroll)
         stroll = pointAt(stroll, p.x, (p.y - geo.petTop) * 2, hit, wantsPanel && hit !== null ? 'panel' : null, columns)
         if (!wasPetted && isPetted(stroll)) {
-          // A good pet: it counts, and it feeds a little.
+          // A good pet: it counts, it feeds a little, and it cheers it up.
           count('pets')
+          cheer(6)
           await feed($, 2)
         }
+        if (!wasRolled && isRolledOver(stroll)) cheer(4)
         await publish($, currentAction)
       }
     }

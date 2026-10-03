@@ -50,16 +50,27 @@ export type Stroll = {
   rub: { x: number; dir: -1 | 0 | 1; turns: number[] } | null
   // Since when it has been being petted, while it is.
   pettedAt: number | null
+  // A treat it was offered: when, and whether it was too full to eat it.
+  treat: { at: number; isRefused: boolean } | null
 }
 
 export function startStroll(): Stroll {
-  return { tick: 0, x: -1, dir: -1, pause: 0, quietSince: 0, pointer: null, emote: null, isHovered: false, flight: null, panelAt: null, homeX: null, dock: 'top', drag: null, typing: null, rub: null, pettedAt: null }
+  return { tick: 0, x: -1, dir: -1, pause: 0, quietSince: 0, pointer: null, emote: null, isHovered: false, flight: null, panelAt: null, homeX: null, dock: 'top', drag: null, typing: null, rub: null, pettedAt: null, treat: null }
 }
 
-export function poseOf(s: Stroll, g: Genome, action: Action): Pose {
+// `mood`: 0 (miserable) to 100 (overjoyed), from the hooks module.
+export function poseOf(s: Stroll, g: Genome, action: Action, mood = 60): Pose {
   const typing = isTyping(s) ? { side: s.typing!.side } : null
   if (isPetted(s) && !s.drag) {
-    return { frame: s.tick, action, sleeping: false, walking: false, gaze: null, emote: 'purr', emoteFrame: s.tick - s.pettedAt!, blinking: false, typing: null }
+    // Petted long enough, it rolls over for a belly rub.
+    const since = s.tick - s.pettedAt!
+    const emote = since > ROLL_AFTER ? 'belly' : 'purr'
+    return { frame: s.tick, action, sleeping: false, walking: false, gaze: null, emote, emoteFrame: since, blinking: false, typing: null }
+  }
+  if (s.treat && s.tick - s.treat.at < TREAT_TICKS && !s.drag) {
+    // Chomping a treat, or (too full) shaking its head at it.
+    const emote = s.treat.isRefused ? 'wiggle' : 'treat'
+    return { frame: s.tick, action, sleeping: false, walking: false, gaze: null, emote, emoteFrame: s.tick - s.treat.at, blinking: false, typing: null }
   }
   if (s.drag) {
     // Dangling from the pointer: a wiggle, looking down at where it may land.
@@ -71,7 +82,10 @@ export function poseOf(s: Stroll, g: Genome, action: Action): Pose {
   const looking = s.pointer && s.tick - s.pointer.at < LOOK ? s.pointer : null
   const sleeping = !busy && !looking && !isEmoting && s.tick - s.quietSince > SLEEP_AFTER
   const isHeld = s.isHovered && s.pointer !== null && s.tick - s.pointer.at < HOVER_TICKS
-  const walking = !busy && !sleeping && !isEmoting && !isHeld && !typing && s.pause === 0 && s.flight === null
+  const isSad = mood < SAD_BELOW && !busy && !typing
+  const walking = !busy && !sleeping && !isEmoting && !isHeld && !typing && !isSad && s.pause === 0 && s.flight === null
+  // Overjoyed and idle, it hops for joy now and then.
+  const isHopping = mood > JOY_ABOVE && !busy && !sleeping && !typing && s.tick % 160 < 8
   const eyeX = s.x + (g.eyes.left + g.eyes.right + g.eyes.size) / 2
   const eyeY = g.eyes.y + g.eyes.size / 2
   const gaze = looking
@@ -90,8 +104,8 @@ export function poseOf(s: Stroll, g: Genome, action: Action): Pose {
     sleeping,
     walking,
     gaze,
-    emote: isEmoting ? s.emote!.kind : null,
-    emoteFrame,
+    emote: isEmoting ? s.emote!.kind : isHopping ? 'jump' : isSad && !sleeping ? 'sad' : null,
+    emoteFrame: isEmoting ? emoteFrame : isHopping ? s.tick % 160 : 0,
     blinking: !sleeping && s.tick % 41 < 2,
     typing: sleeping ? null : typing,
   }
@@ -191,6 +205,20 @@ export type Click = 'launch' | 'panel' | null
 const RUB_TURNS = 3
 const RUB_WINDOW = 16
 const PET_LINGER = 10
+// Petted this long (in ticks), it rolls onto its back.
+const ROLL_AFTER = 24
+const TREAT_TICKS = 24
+const SAD_BELOW = 25
+const JOY_ABOVE = 80
+
+// Offer a treat: eaten, unless it is too full.
+export function giveTreat(s: Stroll, isFull: boolean): Stroll {
+  return { ...s, treat: { at: s.tick, isRefused: isFull }, pause: TREAT_TICKS, quietSince: s.tick, panelAt: null }
+}
+
+export function isRolledOver(s: Stroll): boolean {
+  return isPetted(s) && s.tick - s.pettedAt! > ROLL_AFTER
+}
 
 export function isPetted(s: Stroll): boolean {
   return s.pettedAt !== null && s.rub !== null && s.tick - (s.rub.turns.at(-1) ?? -Infinity) < PET_LINGER + RUB_WINDOW / 2
@@ -243,5 +271,5 @@ export function drop(s: Stroll, dx: number, dy: number, columns: number): Stroll
 
 export function signature(shown: Shown): string {
   const p = shown.pose
-  return `${shown.pose.typing?.side ?? '-'}|${shown.pose.emote === 'purr' ? shown.pose.emoteFrame : ''}|${shown.wpm}|${shown.dock}|${shown.dragDy}|${shown.isHovered}|${shown.isPanelOpen}|${shown.menuHover}|${shown.lift}|${shown.x}|${p.frame}|${p.walking}|${p.sleeping}|${p.blinking}|${p.emote}|${p.emoteFrame}|${p.gaze?.x},${p.gaze?.y}|${p.action}`
+  return `${shown.pose.typing?.side ?? '-'}|${shown.mood}|${shown.wpm}|${shown.dock}|${shown.dragDy}|${shown.isHovered}|${shown.isPanelOpen}|${shown.menuHover}|${shown.lift}|${shown.x}|${p.frame}|${p.walking}|${p.sleeping}|${p.blinking}|${p.emote}|${p.emoteFrame}|${p.gaze?.x},${p.gaze?.y}|${p.action}`
 }

@@ -7,18 +7,20 @@ import type { MenuInfo } from '../../plugin/hooks/menu'
 
 const p = makeGenome(hashSeed('menu')).palette
 const info = (over: Partial<MenuInfo> = {}): MenuInfo => ({
-  name: 'Pip', species: 'Quooo', level: 3, into: 53, span: 150, ageDays: 4, bestWpm: 88,
-  stats: { prompts: 12, reads: 40, searches: 22, eaten: 310, pooped: 12_345, tinkers: 3, launches: 5, keys: 999, pets: 7 },
+  name: 'Pip', species: 'Quooo', level: 3, into: 53, span: 150, ageDays: 4, bestWpm: 88, mood: 70,
+  stats: { prompts: 12, reads: 40, searches: 22, eaten: 310, pooped: 12_345, tinkers: 3, launches: 5, keys: 999, pets: 7, treats: 3 },
   ...over,
 })
 
 test('the card is always its full size, every row exactly its width', () => {
-  for (const hover of [null, 'close', 'reads', 'rename', 'hide', 'xp']) {
+  for (const hover of [null, 'close', 'reads', 'rename', 'treat', 'hide', 'xp', 'mood']) {
+   for (const mood of [0, 50, 100]) {
     for (const name of [null, 'Pip', 'A really very long name for a very small creature']) {
-      const m = buildMenu(info({ name }), p, hover)
+      const m = buildMenu(info({ name, mood }), p, hover)
       assert.equal(m.rows.length, MENU_ROWS)
       for (const runs of m.rows) assert.equal(runs.reduce((n, r) => n + r.text.length, 0), MENU_WIDTH, `${name} ${hover}`)
     }
+   }
   }
 })
 
@@ -39,10 +41,11 @@ test('every button can be hit, and its tooltip shows when hovered', () => {
     const footer = hovered.rows[MENU_ROWS - 1]!.map(r => r.text).join('')
     assert.ok(footer.includes(b.tip.slice(0, 20)), `${b.id}: tooltip missing`)
   }
-  assert.equal(hotspotAt(m, 5, 2), null)
+  assert.equal(hotspotAt(m, 6, 2), null)
+  assert.equal(hotspotAt(m, 1, 2), 'xp')
 })
 
 test('big numbers stay short', () => {
-  const row = buildMenu(info(), p, null).rows[3]!.map(r => r.text).join('')
+  const row = buildMenu(info(), p, null).rows[2]!.map(r => r.text).join('')
   assert.ok(row.includes('12k'), row)
 })

@@ -7,7 +7,7 @@ export type Action =
   | 'poop'
   | 'tinker'
 
-export type Emote = 'jump' | 'wiggle' | 'heart' | 'happy' | 'purr'
+export type Emote = 'jump' | 'wiggle' | 'heart' | 'happy' | 'purr' | 'belly' | 'treat' | 'sad'
 
 export type Pose = {
   frame: number
@@ -40,6 +40,7 @@ export type Shown = {
   menuHover: string | null
   // Words per minute while the person types; null when they are not typing.
   wpm: number | null
+  mood: number
 }
 
 export type SpinnerMode = 'text' | 'off'

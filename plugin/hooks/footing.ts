@@ -148,7 +148,9 @@ export class RowBook {
     this.ordered(rowId)
   }
 
-  private ordered(rowId: string): void {
+  // A row the conversation added that is not a home (a reply, a tool's
+  // result): it still takes its place in the order.
+  ordered(rowId: string): void {
     if (this.order.includes(rowId)) return
     this.order.push(rowId)
     if (this.order.length > 500) this.order.shift()

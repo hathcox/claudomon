@@ -15,6 +15,8 @@ export type MenuInfo = {
   into: number
   span: number
   ageDays: number
+  // 0 (miserable) to 100 (overjoyed).
+  mood: number
   stats: {
     prompts: number
     reads: number
@@ -25,11 +27,12 @@ export type MenuInfo = {
     launches: number
     keys: number
     pets: number
+    treats: number
   }
   bestWpm: number
 }
 
-export const MENU_WIDTH = 38
+export const MENU_WIDTH = 40
 export const MENU_ROWS = 7
 
 const PANEL = '#20212b'
@@ -41,19 +44,24 @@ const DIM = '#9497ab'
 // units long, so a string's length is its width in cells throughout.
 const STATS: { id: string; icon: string; key: keyof MenuInfo['stats'] | 'age' | 'wpm'; tip: string }[] = [
   { id: 'reads', icon: '📖', key: 'reads', tip: 'Files read: every Read, cat, head and tail' },
-  { id: 'pets', icon: '💗', key: 'pets', tip: 'Times you petted it: rub back and forth over it' },
+  { id: 'searches', icon: '🔍', key: 'searches', tip: 'Searches: laps on the treadmill (rg, grep, find)' },
+  { id: 'eaten', icon: '🍩', key: 'eaten', tip: 'Lines of code eaten: removed by edits' },
+  { id: 'pooped', icon: '💩', key: 'pooped', tip: 'Lines of code pooped: written or added' },
   { id: 'prompts', icon: '💬', key: 'prompts', tip: 'Prompts fed: 10 xp each' },
   { id: 'keys', icon: '🎹', key: 'keys', tip: 'Keys typed in the prompt: a paw for every one' },
-  { id: 'eaten', icon: '🍪', key: 'eaten', tip: 'Lines of code eaten: removed by edits' },
-  { id: 'pooped', icon: '💩', key: 'pooped', tip: 'Lines of code pooped: written or added' },
   { id: 'wpm', icon: '🏁', key: 'wpm', tip: 'Your best typing speed, in words per minute' },
+  { id: 'launches', icon: '🚀', key: 'launches', tip: 'Times you sent it flying' },
+  { id: 'pets', icon: '💗', key: 'pets', tip: 'Times you petted it: rub back and forth over it' },
+  { id: 'treats', icon: '🍪', key: 'treats', tip: 'Treats eaten (it gets full after a few)' },
+  { id: 'tinkers', icon: '🔧', key: 'tinkers', tip: 'Commands run that were not reads or searches' },
   { id: 'age', icon: '🎂', key: 'age', tip: 'Days since it hatched in this project' },
 ]
 
 export const BUTTONS: { id: string; label: string; tip: string }[] = [
   { id: 'rename', label: '📝 Name', tip: 'Give it a name' },
+  { id: 'treat', label: '🍪 Treat', tip: 'Give it a treat: it loves them' },
   { id: 'launch', label: '🚀 Fly', tip: 'Launch it across the corner' },
-  { id: 'nap', label: '💤 Nap', tip: 'Let it doze until you come back' },
+
   { id: 'hide', label: '🙈 Hide', tip: 'Tuck it away; /claudomon hide brings it back' },
 ]
 
@@ -87,23 +95,34 @@ export function buildMenu(info: MenuInfo, p: Palette, hover: string | null): Men
   ])
   spots.push({ id: 'close', row: 0, from: W - CLOSE.label.length, to: W })
 
-  // XP bar, drawn with background cells so it fills solidly in any terminal.
-  const barWidth = 20
-  const filled = Math.round((info.into / Math.max(1, info.span)) * barWidth)
-  const xpText = ` ${info.into}/${info.span} xp`
+  // XP and mood bars, drawn with background cells so they fill solidly.
+  const xpWidth = 12
+  const filled = Math.round((info.into / Math.max(1, info.span)) * xpWidth)
+  const xpText = ` ${info.into}/${info.span}`
+  const moodWidth = 8
+  const happy = Math.round((Math.max(0, Math.min(100, info.mood)) / 100) * moodWidth)
+  const moodColour = info.mood < 25 ? '#6b7a99' : info.mood > 80 ? '#ff5c8a' : '#e88aa8'
+  const xpRuns: Run[] = [
+    { text: ' ', bg: PANEL },
+    { text: ' '.repeat(filled), bg: p.accent },
+    { text: ' '.repeat(xpWidth - filled), bg: RAISED },
+    { text: xpText.padEnd(10), fg: DIM, bg: PANEL },
+  ]
+  const moodAt = xpRuns.reduce((n, r) => n + r.text.length, 0) + 2
   rows.push(
     fill([
-      { text: ' ', bg: PANEL },
-      { text: ' '.repeat(filled), bg: p.accent },
-      { text: ' '.repeat(barWidth - filled), bg: RAISED },
-      { text: xpText, fg: DIM, bg: PANEL },
+      ...xpRuns,
+      { text: '♥ ', fg: moodColour, bg: PANEL, bold: true },
+      { text: ' '.repeat(happy), bg: moodColour },
+      { text: ' '.repeat(moodWidth - happy), bg: RAISED },
     ]),
   )
-  spots.push({ id: 'xp', row: 1, from: 1, to: 1 + barWidth })
+  spots.push({ id: 'xp', row: 1, from: 1, to: 1 + xpWidth })
+  spots.push({ id: 'mood', row: 1, from: moodAt - 2, to: moodAt + moodWidth })
 
-  // Two rows of four stat cells: icon and value, each cell 9 wide.
+  // Three rows of four stat cells: icon and value, each cell 9 wide.
   const cellWidth = 9
-  for (let r = 0; r < 2; r++) {
+  for (let r = 0; r < 3; r++) {
     const runs: Run[] = [{ text: ' ', bg: PANEL }]
     let col = 1
     for (const s of STATS.slice(r * 4, r * 4 + 4)) {
@@ -127,16 +146,19 @@ export function buildMenu(info: MenuInfo, p: Palette, hover: string | null): Men
     const chip = ` ${b.label} `
     buttons.push({ text: chip, fg: isHover ? '#1b1b2a' : TEXT, bg: isHover ? p.body : RAISED, bold: isHover })
     if (i < BUTTONS.length - 1) buttons.push({ text: ' ', bg: PANEL })
-    spots.push({ id: b.id, row: 4, from: col, to: col + chip.length })
+    spots.push({ id: b.id, row: 5, from: col, to: col + chip.length })
     col += chip.length + 1
   })
   rows.push(fill(buttons))
 
-  // A blank row, then the tooltip footer for whatever is hovered.
-  rows.push(fill([]))
+  // The tooltip footer for whatever is hovered.
   const tip =
     [...STATS, ...BUTTONS, CLOSE].find(x => x.id === hover)?.tip ??
-    (hover === 'xp' ? `${info.span - info.into} xp to level ${info.level + 1}` : 'Hover an icon for details')
+    (hover === 'xp'
+      ? `${info.span - info.into} xp to level ${info.level + 1}`
+      : hover === 'mood'
+        ? `Happiness ${Math.round(info.mood)}%: treats, pets and company`
+        : 'Hover an icon for details')
   rows.push(fill([{ text: ` ${tip}`.slice(0, W), fg: hover ? TEXT : DIM, bg: PANEL }]))
 
   return { width: W, rows, spots }
