@@ -8,7 +8,7 @@ import type { MenuInfo } from '../../plugin/hooks/menu'
 const p = makeGenome(hashSeed('menu')).palette
 const info = (over: Partial<MenuInfo> = {}): MenuInfo => ({
   name: 'Pip', species: 'Quooo', level: 3, into: 53, span: 150, ageDays: 4, bestWpm: 88,
-  stats: { prompts: 12, reads: 40, searches: 22, eaten: 310, pooped: 12_345, tinkers: 3, launches: 5, keys: 999 },
+  stats: { prompts: 12, reads: 40, searches: 22, eaten: 310, pooped: 12_345, tinkers: 3, launches: 5, keys: 999, pets: 7 },
   ...over,
 })
 

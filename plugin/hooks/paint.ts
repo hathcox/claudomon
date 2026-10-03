@@ -62,6 +62,8 @@ export function paint(g: Genome, pose: Pose): Pixels {
   else dy = frame % 16 < 8 ? 0 : -1
   if (pose.emote === 'jump') dy = -([0, 1, 2, 3, 2, 1, 0, 0][pose.emoteFrame] ?? 0)
   if (pose.emote === 'wiggle') dx = [0, 1, 0, -1][pose.emoteFrame % 4] ?? 0
+  // Being petted: a slow, contented sway.
+  if (pose.emote === 'purr') dx = [0, 0, 1, 1, 0, 0, -1, -1][(pose.emoteFrame >> 1) % 8] ?? 0
 
   if (running) {
     // A treadmill belt under the feet, its dashes rolling backwards.
@@ -110,7 +112,7 @@ export function paint(g: Genome, pose: Pose): Pixels {
   for (const ex of [e.left, e.right]) {
     const x = ex + dx
     const y = e.y + dy
-    if (pose.emote === 'happy') {
+    if (pose.emote === 'happy' || pose.emote === 'purr') {
       // Closed, smiling arcs: a top stroke and the outer corner dipping.
       rect(x, y, s, 1, INK)
       put(ex === e.left ? x - 1 : x + s, y + 1, INK)
@@ -131,7 +133,7 @@ export function paint(g: Genome, pose: Pose): Pixels {
     const open = frame % 4 < 2
     rect(mx, my, 2, 1, open ? MOUTH : INK)
     if (open) put(mx, my + 1, MOUTH)
-  } else if (pose.emote === 'happy' || pose.emote === 'heart') {
+  } else if (pose.emote === 'happy' || pose.emote === 'heart' || pose.emote === 'purr') {
     put(mx - 1, my, INK)
     rect(mx, my + 1, 2, 1, INK)
     put(mx + 2, my, INK)
@@ -144,6 +146,12 @@ export function paint(g: Genome, pose: Pose): Pixels {
   if (awake && !pose.typing) props(action)
   if (pose.sleeping) glyph(ZED, right + 2, Math.max(0, 2 - ((frame >> 3) % 3)), p.accent)
   if (pose.emote === 'heart') glyph(HEART_SHAPE, right + 1, Math.max(0, 4 - (pose.emoteFrame >> 1)), HEART)
+  if (pose.emote === 'purr') {
+    // Cheeks flush and a heart drifts up, over and over while it is petted.
+    const e2 = g.eyes
+    for (const ex of [e2.left - 1, e2.right + e2.size]) put(ex + dx, e2.y + e2.size + dy, p.blush)
+    glyph(HEART_SHAPE, right + 1, 4 - ((pose.emoteFrame >> 1) % 5), HEART)
+  }
 
   return px
 

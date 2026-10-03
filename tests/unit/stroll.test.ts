@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { W, hashSeed, makeGenome } from '../../plugin/hooks/genome'
-import { drop, grab, hitTest, homeOf, isTyping, liftOf, pointAt, poseOf, startStroll, tap, tickStroll } from '../../plugin/hooks/stroll'
+import { drop, grab, hitTest, homeOf, isPetted, isTyping, liftOf, pointAt, poseOf, startStroll, tap, tickStroll } from '../../plugin/hooks/stroll'
 import type { Stroll } from '../../plugin/hooks/stroll'
 
 const g = makeGenome(hashSeed('git@github.com:example/stroll.git'))
@@ -104,4 +104,37 @@ test('hit testing follows each dock layout', () => {
   assert.equal(hitTest(s, g, centre, 0.5, 10, 0, 6), 'pet')
   assert.equal(hitTest(s, g, centre, 6.5, 10, 0, 6), 'tag')
   assert.equal(hitTest(s, g, centre, 8.5, 10, 0, 6), null)
+})
+
+function rub(s: Stroll, xs: number[]): Stroll {
+  for (const x of xs) {
+    s = tickStroll(s, g, 'idle', COLS)
+    s = pointAt(s, x, 4, 'pet', null, COLS)
+  }
+  return s
+}
+
+test('rubbing back and forth over it pets it: it purrs, then settles', () => {
+  let s = run(startStroll(), 2)
+  const c = s.x + g.cx
+  s = rub(s, [c - 2, c, c + 2, c, c - 2, c, c + 2, c, c - 2])
+  assert.ok(isPetted(s))
+  assert.equal(poseOf(s, g, 'idle').emote, 'purr')
+  s = run(s, 30)
+  assert.ok(!isPetted(s))
+  assert.notEqual(poseOf(s, g, 'idle').emote, 'purr')
+})
+
+test('just passing over it, or clicking, is not petting', () => {
+  let s = run(startStroll(), 2)
+  const c = s.x + g.cx
+  s = rub(s, [c - 4, c - 2, c, c + 2, c + 4])
+  assert.ok(!isPetted(s))
+  s = rub(s, [c - 2, c, c + 2, c])
+  s = pointAt(s, c, 4, 'pet', 'launch', COLS)
+  assert.ok(!isPetted(s))
+  // Rubbing off the pet does not count either.
+  let t = run(startStroll(), 2)
+  for (const x of [1, 3, 1, 3, 1, 3, 1]) t = pointAt(tickStroll(t, g, 'idle', COLS), x, 4, null, null, COLS)
+  assert.ok(!isPetted(t))
 })

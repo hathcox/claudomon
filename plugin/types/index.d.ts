@@ -7,7 +7,7 @@ export type Action =
   | 'poop'
   | 'tinker'
 
-export type Emote = 'jump' | 'wiggle' | 'heart' | 'happy'
+export type Emote = 'jump' | 'wiggle' | 'heart' | 'happy' | 'purr'
 
 export type Pose = {
   frame: number

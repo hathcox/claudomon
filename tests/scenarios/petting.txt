@@ -1,0 +1,34 @@
+# Rubbing the mouse back and forth over the pet pets it: a heart floats up.
+# Free: no model call.
+wait-for (trust this folder|❯\s) 30
+wait 1
+if trust this folder :: key down ;; key enter
+wait-for ❯\s 30
+wait 1
+type /claudomon
+wait 0.3
+key enter
+wait 2
+expect-no-color #ff5c8a rows 0-17 no heart before petting
+find-color @OUTLINE@
+mouse-move $cx $cy
+wait 0.2
+find-color @OUTLINE@
+mouse-move $cx-2 $cy
+wait 0.12
+mouse-move $cx+2 $cy
+wait 0.12
+mouse-move $cx-2 $cy
+wait 0.12
+mouse-move $cx+2 $cy
+wait 0.12
+mouse-move $cx-2 $cy
+wait 0.12
+mouse-move $cx+2 $cy
+wait 0.4
+shot petted
+expect-color #ff5c8a rows 0-17 a heart while petted
+key ctrl-c
+key ctrl-c
+key ctrl-c
+wait 1

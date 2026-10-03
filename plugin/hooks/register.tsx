@@ -12,7 +12,7 @@ import type { Cut } from './footing'
 import { MENU_ROWS, MENU_WIDTH, buildMenu, hotspotAt } from './menu'
 import type { MenuInfo } from './menu'
 import { shade } from './shade'
-import { HOVER_TICKS, TICK_MS, drop, grab, hitTest, homeOf, isTyping, tap, isPanelOpen, liftOf, pointAt, poseOf, signature, startStroll, tickStroll } from './stroll'
+import { HOVER_TICKS, TICK_MS, drop, grab, hitTest, homeOf, isPetted, isTyping, tap, isPanelOpen, liftOf, pointAt, poseOf, signature, startStroll, tickStroll } from './stroll'
 import type { Stroll } from './stroll'
 import type { Action, Activity, Dock, PetView, Shown, SpinnerMode } from '../types'
 
@@ -461,7 +461,13 @@ export const register: Register = on => {
         ptrLog.push(`${raw.kind} x=${p.x} y=${p.y} click=${p.click} hit=${hit} strollX=${stroll.x}`)
         if (ptrLog.length > 40) ptrLog.shift()
         if (p.click === 'left' && !wantsPanel && hit === 'tag') await update($, isNaming, () => true)
+        const wasPetted = isPetted(stroll)
         stroll = pointAt(stroll, p.x, (p.y - geo.petTop) * 2, hit, wantsPanel && hit !== null ? 'panel' : null, columns)
+        if (!wasPetted && isPetted(stroll)) {
+          // A good pet: it counts, and it feeds a little.
+          count('pets')
+          await feed($, 2)
+        }
         await publish($, currentAction)
       }
     }

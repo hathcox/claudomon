@@ -10,7 +10,7 @@ const ACTIONS: Action[] = ['idle', 'think', 'read', 'search', 'eat', 'poop', 'ti
 const EXTRAS: Partial<Pose>[] = [
   {}, { blinking: true }, { sleeping: true }, { walking: true }, { gaze: { x: -1, y: -1 } },
   { gaze: { x: 1, y: 1 } }, { emote: 'jump', emoteFrame: 3 }, { emote: 'heart', emoteFrame: 2 },
-  { emote: 'happy', emoteFrame: 1 }, { emote: 'wiggle', emoteFrame: 1 }, { typing: { side: 0 } }, { typing: { side: 1 } },
+  { emote: 'happy', emoteFrame: 1 }, { emote: 'purr', emoteFrame: 5 }, { emote: 'wiggle', emoteFrame: 1 }, { typing: { side: 0 } }, { typing: { side: 1 } },
 ]
 const HEX = /^#[0-9a-f]{6}$/
 

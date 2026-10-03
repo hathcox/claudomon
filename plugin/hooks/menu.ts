@@ -24,6 +24,7 @@ export type MenuInfo = {
     tinkers: number
     launches: number
     keys: number
+    pets: number
   }
   bestWpm: number
 }
@@ -40,7 +41,7 @@ const DIM = '#9497ab'
 // units long, so a string's length is its width in cells throughout.
 const STATS: { id: string; icon: string; key: keyof MenuInfo['stats'] | 'age' | 'wpm'; tip: string }[] = [
   { id: 'reads', icon: '📖', key: 'reads', tip: 'Files read: every Read, cat, head and tail' },
-  { id: 'searches', icon: '🔍', key: 'searches', tip: 'Searches: laps on the treadmill (rg, grep, find)' },
+  { id: 'pets', icon: '💗', key: 'pets', tip: 'Times you petted it: rub back and forth over it' },
   { id: 'prompts', icon: '💬', key: 'prompts', tip: 'Prompts fed: 10 xp each' },
   { id: 'keys', icon: '🎹', key: 'keys', tip: 'Keys typed in the prompt: a paw for every one' },
   { id: 'eaten', icon: '🍪', key: 'eaten', tip: 'Lines of code eaten: removed by edits' },

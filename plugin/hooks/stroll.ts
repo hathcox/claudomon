@@ -45,14 +45,22 @@ export type Stroll = {
   drag: { grabDx: number; startX: number; startY: number; x: number; y: number; moved: boolean } | null
   // The person's last keystroke in the prompt, and which paw it brought down.
   typing: { lastTick: number; side: 0 | 1 } | null
+  // The pointer rubbing back and forth over it: where it last was, which way
+  // it was going, and how many times it turned around (and when).
+  rub: { x: number; dir: -1 | 0 | 1; turns: number[] } | null
+  // Since when it has been being petted, while it is.
+  pettedAt: number | null
 }
 
 export function startStroll(): Stroll {
-  return { tick: 0, x: -1, dir: -1, pause: 0, quietSince: 0, pointer: null, emote: null, isHovered: false, flight: null, panelAt: null, homeX: null, dock: 'top', drag: null, typing: null }
+  return { tick: 0, x: -1, dir: -1, pause: 0, quietSince: 0, pointer: null, emote: null, isHovered: false, flight: null, panelAt: null, homeX: null, dock: 'top', drag: null, typing: null, rub: null, pettedAt: null }
 }
 
 export function poseOf(s: Stroll, g: Genome, action: Action): Pose {
   const typing = isTyping(s) ? { side: s.typing!.side } : null
+  if (isPetted(s) && !s.drag) {
+    return { frame: s.tick, action, sleeping: false, walking: false, gaze: null, emote: 'purr', emoteFrame: s.tick - s.pettedAt!, blinking: false, typing: null }
+  }
   if (s.drag) {
     // Dangling from the pointer: a wiggle, looking down at where it may land.
     return { frame: s.tick, action, sleeping: false, walking: false, gaze: { x: 0, y: 0 }, emote: 'wiggle', emoteFrame: s.tick % 4, blinking: false }
@@ -178,8 +186,29 @@ export function hitTest(s: Stroll, g: Genome, x: number, row: number, tagWidth: 
 // cells, `y` in the pet's pixel rows. It holds still while it is hovered.
 export type Click = 'launch' | 'panel' | null
 
+// Petting is rubbing: the pointer turning around over the pet three times
+// within two seconds. It lasts while the rubbing goes on, and a moment after.
+const RUB_TURNS = 3
+const RUB_WINDOW = 16
+const PET_LINGER = 10
+
+export function isPetted(s: Stroll): boolean {
+  return s.pettedAt !== null && s.rub !== null && s.tick - (s.rub.turns.at(-1) ?? -Infinity) < PET_LINGER + RUB_WINDOW / 2
+}
+
+function rubbed(s: Stroll, x: number, hit: Hit, click: Click): Pick<Stroll, 'rub' | 'pettedAt'> {
+  if (hit !== 'pet' || click !== null) return { rub: null, pettedAt: null }
+  const rub = s.rub ?? { x, dir: 0, turns: [] }
+  const step = Math.round(x) - Math.round(rub.x)
+  if (step === 0) return { rub, pettedAt: s.pettedAt }
+  const dir = step > 0 ? 1 : -1
+  const turns = (rub.dir !== 0 && dir !== rub.dir ? [...rub.turns, s.tick] : rub.turns).filter(t => s.tick - t < RUB_WINDOW)
+  const isRubbing = turns.length >= RUB_TURNS
+  return { rub: { x, dir, turns }, pettedAt: isRubbing ? (s.pettedAt ?? s.tick) : s.pettedAt }
+}
+
 export function pointAt(s: Stroll, x: number, y: number, hit: Hit, click: Click, columns: number): Stroll {
-  const next: Stroll = { ...s, quietSince: s.tick, pointer: { x, y, at: s.tick }, isHovered: hit !== null }
+  const next: Stroll = { ...s, quietSince: s.tick, pointer: { x, y, at: s.tick }, isHovered: hit !== null, ...rubbed(s, x, hit, click) }
   if (hit !== null) next.pause = Math.max(next.pause, 12)
   if (click === 'panel' && hit !== null) next.panelAt = next.panelAt === null ? s.tick : null
   if (click === 'launch' && hit === 'pet' && !s.flight) {
@@ -214,5 +243,5 @@ export function drop(s: Stroll, dx: number, dy: number, columns: number): Stroll
 
 export function signature(shown: Shown): string {
   const p = shown.pose
-  return `${shown.pose.typing?.side ?? '-'}|${shown.wpm}|${shown.dock}|${shown.dragDy}|${shown.isHovered}|${shown.isPanelOpen}|${shown.menuHover}|${shown.lift}|${shown.x}|${p.frame}|${p.walking}|${p.sleeping}|${p.blinking}|${p.emote}|${p.emoteFrame}|${p.gaze?.x},${p.gaze?.y}|${p.action}`
+  return `${shown.pose.typing?.side ?? '-'}|${shown.pose.emote === 'purr' ? shown.pose.emoteFrame : ''}|${shown.wpm}|${shown.dock}|${shown.dragDy}|${shown.isHovered}|${shown.isPanelOpen}|${shown.menuHover}|${shown.lift}|${shown.x}|${p.frame}|${p.walking}|${p.sleeping}|${p.blinking}|${p.emote}|${p.emoteFrame}|${p.gaze?.x},${p.gaze?.y}|${p.action}`
 }
