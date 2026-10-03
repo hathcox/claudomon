@@ -51,10 +51,9 @@ export function place(i: PlaceInput): Place | null {
     if (!i.topless) return null
     // No row is cut by the top edge (the top of the screen is something rows
     // cannot be hooked into, or the conversation is short): stand on the
-    // topmost row on screen. Failing that, wait while a reply streams in, and
-    // stand at the bottom when idle.
+    // topmost row on screen. Failing that, do as the bottom dock does: never
+    // vanish.
     if (i.topCandidate != null) return i.rowId === i.topCandidate && i.cut != null ? { where: 'top', layout: 'top-cut' } : null
-    if (i.working) return null
   }
   if (i.working) return i.component === 'Spinner' ? { where: 'bottom', layout: 'above' } : null
   if (i.footing !== null) return i.rowId === i.footing ? { where: 'bottom', layout: 'above' } : null

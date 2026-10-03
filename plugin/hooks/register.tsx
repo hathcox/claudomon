@@ -374,6 +374,9 @@ export const register: Register = on => {
     sessionId = await $.session.id()
     // The conversation's order is kept on disk: it outlives reloads.
     book.order = ((await $.store.get(`order:${sessionId}`)) as string[] | undefined) ?? []
+    // Each session keeps its own order; only the latest few are worth keeping.
+    const orders = (await $.store.keys()).filter(k => k.startsWith('order:') && k !== `order:${sessionId}`)
+    for (const old of orders.slice(0, Math.max(0, orders.length - 8))) await $.store.delete(old)
     // In a dev hot-reload folder it always writes, beside the mod; an installed
     // copy writes only when asked.
     const isDev = $.plugin.root.includes('/dev-mods/')

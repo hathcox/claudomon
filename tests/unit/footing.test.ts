@@ -23,10 +23,10 @@ test('top dock: the row cut by the top edge holds the pet, and only it', () => {
   assert.deepEqual(drawer(screen, { docked: 'top', footing: 'new', working: true }), ['old'])
 })
 
-test('top dock, nothing cut: idle it stands at home at the bottom; working it waits', () => {
+test('top dock, nothing to stand on at the top: it does as the bottom dock does, never vanishing', () => {
   const screen = [{ id: 'a', cut: { first: 0, last: 3, of: 4 } }, { id: 'home', cut: { first: 0, last: 1, of: 2 } }, { id: 'spin', component: 'Spinner', cut: undefined }]
   assert.deepEqual(drawer(screen, { docked: 'top', topless: true, footing: 'home' }), ['home'])
-  assert.deepEqual(drawer(screen, { docked: 'top', topless: true, working: true, footing: 'home' }), [])
+  assert.deepEqual(drawer(screen, { docked: 'top', topless: true, working: true, footing: 'home' }), ['spin'])
 })
 
 test('bottom dock: at home when it is on screen, on the spinner while working', () => {
