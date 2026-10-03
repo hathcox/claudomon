@@ -173,11 +173,9 @@ export class RowBook {
   // draw, which is top to bottom, and leave it (false) when scrolled away.
   topVisible(): string | null {
     const isCandidate = (id: string) => this.visible.get(id) === true && this.measured.has(id) && !this.spinners.has(id)
-    // The conversation's own order is the truth; rows from before it was
-    // kept fall back to the order they drew in.
-    const known = this.order.find(isCandidate)
-    if (known) return known
-    for (const id of this.visible.keys()) if (isCandidate(id)) return id
-    return null
+    // Only the conversation's own order can say which row is on top: the
+    // order rows draw in is no guide (after a reload the bottom one may draw
+    // first), so without it there is no candidate.
+    return this.order.find(isCandidate) ?? null
   }
 }

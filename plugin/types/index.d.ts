@@ -67,7 +67,6 @@ declare module 'claude-code' {
       dock: Dock
       topless: boolean
       recentRows: string[]
-      rowOrder: string[]
     }
   }
 }

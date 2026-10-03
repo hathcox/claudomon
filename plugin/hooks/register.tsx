@@ -23,7 +23,6 @@ const spinner = atom({ plugin: 'claudomon', key: 'spinnerNarration' } as const, 
 const isHidden = atom({ plugin: 'claudomon', key: 'isHidden' } as const, false)
 const anchor = atom({ plugin: 'claudomon', key: 'anchor' } as const, null)
 const shown = atom({ plugin: 'claudomon', key: 'shown' } as const, null)
-const rowOrder = atom({ plugin: 'claudomon', key: 'rowOrder' } as const, [])
 const recentRows = atom({ plugin: 'claudomon', key: 'recentRows' } as const, [])
 const dock = atom({ plugin: 'claudomon', key: 'dock' } as const, 'top')
 const topless = atom({ plugin: 'claudomon', key: 'topless' } as const, false)
@@ -128,6 +127,14 @@ let footingNow: string | null = null
 // Kept outside $.state because drawing may not write state; read by the tick.
 const book = new RowBook()
 let orderSaved = 0
+let sessionId = ''
+
+// Keep the conversation's order on disk (from a hook, not the clock).
+async function saveOrder($: EngineInterface) {
+  if (book.order.length === orderSaved || !sessionId) return
+  orderSaved = book.order.length
+  await $.store.set(`order:${sessionId}`, book.order.slice(-500))
+}
 // The "done" rows of finished turns, in the order they first drew; and the
 // first new one to draw after a turn completes becomes the footing.
 
@@ -148,10 +155,6 @@ async function tick($: EngineInterface) {
     await update($, topless, () => toplessNow)
   }
   await heal($)
-  if (book.order.length !== orderSaved) {
-    orderSaved = book.order.length
-    await update($, rowOrder, () => [...book.order])
-  }
   await publish($, currentAction)
   if (diagPath && stroll.tick % 8 === 0) await diagnose($, diagPath)
 }
@@ -368,7 +371,9 @@ export const register: Register = on => {
     footingNow = await read($, anchor)
     book.home = footingNow
     book.recent = await read($, recentRows)
-    book.order = [...(await read($, rowOrder))]
+    sessionId = await $.session.id()
+    // The conversation's order is kept on disk: it outlives reloads.
+    book.order = ((await $.store.get(`order:${sessionId}`)) as string[] | undefined) ?? []
     // In a dev hot-reload folder it always writes, beside the mod; an installed
     // copy writes only when asked.
     const isDev = $.plugin.root.includes('/dev-mods/')
@@ -470,6 +475,7 @@ export const register: Register = on => {
     await update($, activity, (): Activity => ({ action: 'idle', detail: null }))
     await update($, isWorking, () => false)
     book.turnEnded()
+    await saveOrder($)
     await flush($)
 
     return next(e)
@@ -479,12 +485,12 @@ export const register: Register = on => {
   on('session.append', async ($, e, next) => {
     const row = await next(e)
     if (!e.agentId && !e.message.isMeta && ORDER_DOORS.has(e.door) && !SHOWN_DOORS.has(e.door)) book.ordered(e.uuid)
+    if (!e.agentId && !e.message.isMeta && ORDER_DOORS.has(e.door)) await saveOrder($)
     if (!e.agentId && !e.message.isMeta && SHOWN_DOORS.has(e.door)) {
       footingNow = e.uuid
       book.appended(e.uuid)
       await update($, anchor, () => e.uuid)
       await update($, recentRows, () => book.recent)
-      await update($, rowOrder, () => book.order)
     }
 
     return row

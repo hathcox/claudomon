@@ -120,12 +120,13 @@ test('top dock with no row cut: the topmost row on screen holds it, on its first
   assert.equal(screen[0]!.cut.of + m.marginTop, 0, 'overlay starts on the first line')
 })
 
-test('the topmost visible row is the first to have drawn that is still on screen', () => {
+test('the topmost visible row is the first in conversation order still on screen', () => {
   const book = new RowBook()
   // A row that never says where it is cannot be stood on.
   book.drawn('unmeasured', 'CommandOutput', undefined)
-  book.drawn('a', 'AssistantMessage', { first: 0, last: 3, of: 4 })
+  book.order = ['unmeasured', 'a', 'b', 'quiet']
   book.drawn('b', 'AssistantMessage', { first: 0, last: 3, of: 4 })
+  book.drawn('a', 'AssistantMessage', { first: 0, last: 3, of: 4 })
   book.drawn('s', 'Spinner', undefined)
   book.drawn('quiet', 'InfoNotice', undefined)
   assert.equal(book.topVisible(), 'a')
@@ -151,4 +152,12 @@ test('old done rows drawing after a reload do not join the order at its end', ()
   assert.deepEqual(book.order, ['q1', 'a1', 'q2', 'a2'])
   book.drawn('done-2', 'TurnDuration', { first: 0, last: 1, of: 2 }, true)
   assert.deepEqual(book.order.at(-1), 'done-2')
+})
+
+test('without the conversation order there is no top candidate (no guessing)', () => {
+  const book = new RowBook()
+  // Just reloaded: rows draw, but nothing has said in what order they are.
+  book.drawn('done', 'TurnDuration', { first: 0, last: 1, of: 2 }, false)
+  book.drawn('a', 'AssistantMessage', { first: 0, last: 9, of: 10 }, false)
+  assert.equal(book.topVisible(), null)
 })
