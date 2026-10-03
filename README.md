@@ -26,7 +26,7 @@ TypeScript function hooks.
 ## Install
 
 ```
-/plugin marketplace add OWNER/claudomon
+/plugin marketplace add hathcox/claudomon
 /plugin install claudomon@claudomon
 ```
 
